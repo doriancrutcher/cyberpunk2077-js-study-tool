@@ -1,0 +1,28 @@
+{
+  "name": "cyberpunk-js-dojo",
+  "version": "1.0.0",
+  "description": "Cyberpunk 2077 styled JavaScript practice problems",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "javascript",
+    "practice",
+    "cyberpunk",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tone": "^15.1.22"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.0",
+    "vite": "^7.2.1"
+  }
+}
