@@ -415,6 +415,30 @@ body {
     height: 300px;
 }
 
+.breach-initiation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+    margin-top: 3rem;
+}
+
+.breach-initiation .terminal-window {
+    max-width: 640px;
+    width: 100%;
+}
+
+.breach-button {
+    letter-spacing: 0.4rem;
+    padding: 1rem 3rem;
+    font-size: 1.1rem;
+}
+
+.breach-button .btn-text {
+    position: relative;
+    z-index: 2;
+}
+
 .code-editor {
     width: 100%;
     min-height: 300px;

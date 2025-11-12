@@ -26,8 +26,6 @@ function CodeEditor({ code, onChange, onRun }) {
         <button 
           className="run-btn" 
           onClick={onRun}
-          onMouseEnter={sounds.playHover}
-          onFocus={sounds.playHover}
         >
           <span className="btn-text">RUN TESTS</span>
           <span className="btn-glow"></span>

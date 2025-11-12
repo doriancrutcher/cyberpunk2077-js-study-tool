@@ -1,7 +1,4 @@
-import { useUiSoundApi } from '../contexts/UiSoundContext'
-
 function ProblemList({ problems, currentProblem, completedProblems, onSelectProblem }) {
-  const sounds = useUiSoundApi()
   
   return (
     <aside className="sidebar">
@@ -19,8 +16,6 @@ function ProblemList({ problems, currentProblem, completedProblems, onSelectProb
               key={problem.id}
               className={`problem-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
               onClick={() => onSelectProblem(index)}
-              onMouseEnter={() => !isActive && sounds.playHover()}
-              onFocus={() => !isActive && sounds.playHover()}
             >
               <div className="problem-item-number">
                 #{String(problem.id).padStart(3, '0')}

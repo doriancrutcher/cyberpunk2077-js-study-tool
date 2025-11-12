@@ -1,3 +1,37 @@
+const getCircularReplacer = () => {
+  const seen = new WeakSet()
+  return (_key, value) => {
+    if (typeof value === 'function') {
+      return `[Function${value.name ? ` ${value.name}` : ''}]`
+    }
+    if (typeof value === 'bigint') {
+      return value.toString()
+    }
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]'
+      }
+      seen.add(value)
+    }
+    return value
+  }
+}
+
+const safeStringify = (value) => {
+  if (typeof value === 'function') {
+    return `[Function${value.name ? ` ${value.name}` : ''}]`
+  }
+  try {
+    return JSON.stringify(value, getCircularReplacer())
+  } catch (error) {
+    try {
+      return String(value)
+    } catch {
+      return '[Unserializable]'
+    }
+  }
+}
+
 function TestResults({ results }) {
   if (!results) {
     return (
@@ -42,9 +76,10 @@ function TestResults({ results }) {
             {' '}Test {result.testNumber}: {result.passed ? 'PASSED' : 'FAILED'}
             {!result.passed && (
               <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-                <div>Input: {JSON.stringify(result.input)}</div>
-                <div>Expected: {JSON.stringify(result.expected)}</div>
-                <div>Got: {JSON.stringify(result.actual)}</div>
+                <div>Input: {safeStringify(result.input)}</div>
+                <div>Expected: {typeof result.expected === 'function' ? '[Custom validator]' : safeStringify(result.expected)}</div>
+                <div>Got: {safeStringify(result.actual)}</div>
+                {result.validatorMessage && <div>Details: {result.validatorMessage}</div>}
                 {result.error && <div>Error: {result.error}</div>}
               </div>
             )}

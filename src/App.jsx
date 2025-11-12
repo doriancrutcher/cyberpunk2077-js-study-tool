@@ -9,6 +9,74 @@ import Timer from './components/Timer'
 import { UiSoundProvider, useUiSoundApi } from './contexts/UiSoundContext'
 import './styles.css'
 
+const deepEqual = (a, b, visited = new WeakMap()) => {
+  if (Object.is(a, b)) return true
+
+  if (typeof a !== typeof b) return false
+
+  if (a === null || b === null) return a === b
+
+  if (typeof a !== 'object') return false
+
+  if (visited.has(a)) {
+    return visited.get(a) === b
+  }
+  visited.set(a, b)
+
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i], visited)) return false
+    }
+    return true
+  }
+
+  const keysA = Object.keys(a)
+  const keysB = Object.keys(b)
+  if (keysA.length !== keysB.length) return false
+
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false
+    if (!deepEqual(a[key], b[key], visited)) return false
+  }
+
+  return true
+}
+
+const evaluateExpectation = (actual, expected) => {
+  if (typeof expected === 'function') {
+    try {
+      const outcome = expected(actual)
+      if (typeof outcome === 'object' && outcome !== null && 'passed' in outcome) {
+        const passed = Boolean(outcome.passed)
+        return {
+          passed,
+          message: passed ? undefined : outcome.message || 'Custom validator returned false.'
+        }
+      }
+      const passed = Boolean(outcome)
+      return {
+        passed,
+        message: passed ? undefined : 'Custom validator returned false.'
+      }
+    } catch (error) {
+      return {
+        passed: false,
+        message: error.message || 'Custom validator threw an error.'
+      }
+    }
+  }
+
+  try {
+    return { passed: deepEqual(actual, expected) }
+  } catch (error) {
+    return {
+      passed: false,
+      message: error.message || 'Unable to compare actual and expected values.'
+    }
+  }
+}
+
 function AppContent() {
   const [currentProblem, setCurrentProblem] = useState(0)
   const [userCode, setUserCode] = useState('')
@@ -17,7 +85,8 @@ function AppContent() {
   const [showTerminal, setShowTerminal] = useState(false)
   const [showBreachProtocol, setShowBreachProtocol] = useState(false)
   const [isDangerMode, setIsDangerMode] = useState(false)
-  const [timerActive, setTimerActive] = useState(true)
+  const [timerActive, setTimerActive] = useState(false)
+  const [hasBreached, setHasBreached] = useState(false)
   const sounds = useUiSoundApi()
 
   useEffect(() => {
@@ -25,7 +94,8 @@ function AppContent() {
       setUserCode(problems[currentProblem].starterCode)
       setTestResults(null)
       setIsDangerMode(false)
-      setTimerActive(true)
+      setTimerActive(false)
+      setHasBreached(false)
       // Remove danger mode class from body
       document.body.classList.remove('danger-mode')
     }
@@ -52,6 +122,7 @@ function AppContent() {
     sounds.playConfirm()
     const problem = problems[currentProblem]
     if (!problem) return
+    if (!hasBreached) return
 
     try {
       // Get the function name from the starter code
@@ -95,14 +166,15 @@ function AppContent() {
         const test = problem.tests[i]
         try {
           const result = userFunction(...test.input)
-          const passed = JSON.stringify(result) === JSON.stringify(test.expected)
-          
+          const { passed, message: validatorMessage } = evaluateExpectation(result, test.expected)
+
           results.push({
             testNumber: i + 1,
             input: test.input,
             expected: test.expected,
             actual: result,
-            passed
+            passed,
+            validatorMessage
           })
 
           if (!passed) {
@@ -161,12 +233,19 @@ function AppContent() {
     setCurrentProblem(index)
     setTestResults(null)
     setIsDangerMode(false)
-    setTimerActive(true)
+    setTimerActive(false)
+    setHasBreached(false)
   }
 
   const handleTimeUp = () => {
     sounds.playTestFailure()
     setIsDangerMode(true)
+  }
+
+  const handleBreach = () => {
+    sounds.playConfirm()
+    setHasBreached(true)
+    setTimerActive(true)
   }
 
   const problem = problems[currentProblem]
@@ -193,44 +272,67 @@ function AppContent() {
         <main className="main-content">
           {problem && (
             <>
-              <Timer 
-                expectedMinutes={expectedMinutes}
-                onTimeUp={handleTimeUp}
-                isActive={timerActive}
-                hasFailed={testResults && !testResults.passed}
-              />
-              
-              <div className="problem-header">
-                <div className="problem-info">
-                  <span className="problem-number">#{String(problem.id).padStart(3, '0')}</span>
-                  <span className="problem-title">{problem.title}</span>
-                </div>
-                <div className={`difficulty-badge ${problem.difficulty}`}>
-                  {problem.difficulty.toUpperCase()}
-                </div>
-              </div>
-
-              <div className="problem-description">
-                <div className="terminal-window">
-                  <div className="terminal-header">
-                    <span className="terminal-dot"></span>
-                    <span className="terminal-dot"></span>
-                    <span className="terminal-dot"></span>
-                    <span className="terminal-title">BRIEFING</span>
+              {!hasBreached ? (
+                <div className="breach-initiation">
+                  <div className="terminal-window">
+                    <div className="terminal-header">
+                      <span className="terminal-dot"></span>
+                      <span className="terminal-dot"></span>
+                      <span className="terminal-dot"></span>
+                      <span className="terminal-title">BREACH PROTOCOL</span>
+                    </div>
+                    <div className="terminal-content">
+                      <p>// Breach authorization required.</p>
+                      <p>// Press BREACH to reveal the objective and start the timer.</p>
+                    </div>
                   </div>
-                  <div className="terminal-content">
-                    {problem.description}
-                  </div>
+                  <button className="breach-button run-btn" onClick={handleBreach}>
+                    <span className="btn-text">BREACH</span>
+                    <span className="btn-glow"></span>
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <Timer 
+                    expectedMinutes={expectedMinutes}
+                    onTimeUp={handleTimeUp}
+                    isActive={timerActive}
+                    hasFailed={testResults && !testResults.passed}
+                  />
+                  
+                  <div className="problem-header">
+                    <div className="problem-info">
+                      <span className="problem-number">#{String(problem.id).padStart(3, '0')}</span>
+                      <span className="problem-title">{problem.title}</span>
+                    </div>
+                    <div className={`difficulty-badge ${problem.difficulty}`}>
+                      {problem.difficulty.toUpperCase()}
+                    </div>
+                  </div>
 
-              <CodeEditor
-                code={userCode}
-                onChange={setUserCode}
-                onRun={runTests}
-              />
+                  <div className="problem-description">
+                    <div className="terminal-window">
+                      <div className="terminal-header">
+                        <span className="terminal-dot"></span>
+                        <span className="terminal-dot"></span>
+                        <span className="terminal-dot"></span>
+                        <span className="terminal-title">BRIEFING</span>
+                      </div>
+                      <div className="terminal-content">
+                        {problem.description}
+                      </div>
+                    </div>
+                  </div>
 
-              <TestResults results={testResults} />
+                  <CodeEditor
+                    code={userCode}
+                    onChange={setUserCode}
+                    onRun={runTests}
+                  />
+
+                  <TestResults results={testResults} />
+                </>
+              )}
             </>
           )}
         </main>
