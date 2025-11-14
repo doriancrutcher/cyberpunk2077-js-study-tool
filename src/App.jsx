@@ -6,6 +6,7 @@ import TestResults from './components/TestResults'
 import TerminalAnimation from './components/TerminalAnimation'
 import BreachProtocol from './components/BreachProtocol'
 import Timer from './components/Timer'
+import CodeBank from './components/CodeBank'
 import { UiSoundProvider, useUiSoundApi } from './contexts/UiSoundContext'
 import './styles.css'
 
@@ -77,17 +78,91 @@ const evaluateExpectation = (actual, expected) => {
   }
 }
 
+// LocalStorage keys
+const STORAGE_KEY_COMPLETED = 'cyberpunk-js-dojo-completed'
+const STORAGE_KEY_CODEBANK = 'cyberpunk-js-dojo-codebank'
+const CODEBANK_MAX_CHARS = 100000 // 100k character limit
+
+// Load completed problems from localStorage
+const loadCompletedProblems = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_COMPLETED)
+    if (stored) {
+      const indices = JSON.parse(stored)
+      return new Set(indices)
+    }
+  } catch (error) {
+    console.error('Error loading completed problems:', error)
+  }
+  return new Set()
+}
+
+// Save completed problems to localStorage
+const saveCompletedProblems = (completedSet) => {
+  try {
+    const indices = Array.from(completedSet)
+    localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(indices))
+  } catch (error) {
+    console.error('Error saving completed problems:', error)
+  }
+}
+
+// Load code bank from localStorage
+const loadCodeBank = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_CODEBANK)
+    return stored || ''
+  } catch (error) {
+    console.error('Error loading code bank:', error)
+    return ''
+  }
+}
+
+// Save code to code bank with character limit
+const saveToCodeBank = (problemId, problemTitle, code) => {
+  try {
+    const existing = loadCodeBank()
+    const entry = `\n// Problem #${problemId}: ${problemTitle}\n${code}\n${'='.repeat(80)}\n`
+    const newBank = existing + entry
+    
+    if (newBank.length > CODEBANK_MAX_CHARS) {
+      // If it would exceed limit, truncate from the beginning (keep most recent)
+      const truncated = newBank.slice(-CODEBANK_MAX_CHARS + entry.length)
+      localStorage.setItem(STORAGE_KEY_CODEBANK, truncated + entry)
+      return { success: true, warning: 'Code bank limit reached. Oldest entries removed.' }
+    }
+    
+    localStorage.setItem(STORAGE_KEY_CODEBANK, newBank)
+    return { success: true }
+  } catch (error) {
+    console.error('Error saving to code bank:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 function AppContent() {
   const [currentProblem, setCurrentProblem] = useState(0)
   const [userCode, setUserCode] = useState('')
   const [testResults, setTestResults] = useState(null)
-  const [completedProblems, setCompletedProblems] = useState(new Set())
+  const [completedProblems, setCompletedProblems] = useState(() => loadCompletedProblems())
   const [showTerminal, setShowTerminal] = useState(false)
   const [showBreachProtocol, setShowBreachProtocol] = useState(false)
   const [isDangerMode, setIsDangerMode] = useState(false)
   const [timerActive, setTimerActive] = useState(false)
   const [hasBreached, setHasBreached] = useState(false)
+  const [showCodeBank, setShowCodeBank] = useState(false)
   const sounds = useUiSoundApi()
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const loaded = loadCompletedProblems()
+    setCompletedProblems(loaded)
+  }, [])
+
+  // Save to localStorage whenever completedProblems changes
+  useEffect(() => {
+    saveCompletedProblems(completedProblems)
+  }, [completedProblems])
 
   useEffect(() => {
     if (problems[currentProblem]) {
@@ -206,6 +281,11 @@ function AppContent() {
         setTimerActive(false)
         // If all tests passed, show breach protocol animation and mark as completed
         setCompletedProblems(prev => new Set([...prev, currentProblem]))
+        // Save code to code bank
+        const result = saveToCodeBank(problem.id, problem.title, userCode)
+        if (result.warning) {
+          console.warn(result.warning)
+        }
         setShowBreachProtocol(true)
       } else {
         sounds.playTestFailure()
@@ -259,6 +339,26 @@ function AppContent() {
       <header className="header">
         <div className="glitch" data-text="CYBERPUNK JS DOJO">CYBERPUNK JS DOJO</div>
         <div className="subtitle">// NEON CITY CODING CHALLENGES //</div>
+        <div className="header-actions">
+          <div className="datamine-tracker">
+            <span className="terminal-prompt">></span>
+            <span className="terminal-text">DATAMINES ACQUIRED: {completedProblems.size}/{problems.length}</span>
+            <div className="datamine-progress">
+              <div 
+                className="datamine-progress-bar" 
+                style={{ width: `${(completedProblems.size / problems.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          <button 
+            className="codebank-header-btn run-btn" 
+            onClick={() => setShowCodeBank(true)}
+            style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem', marginLeft: '1.5rem' }}
+          >
+            <span className="btn-text">CODE BANK</span>
+            <span className="btn-glow"></span>
+          </button>
+        </div>
       </header>
 
       <div className="container">
@@ -350,6 +450,10 @@ function AppContent() {
           }}
         />
       )}
+      <CodeBank 
+        isVisible={showCodeBank}
+        onClose={() => setShowCodeBank(false)}
+      />
     </div>
   )
 }
