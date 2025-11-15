@@ -7,8 +7,37 @@ import TerminalAnimation from './components/TerminalAnimation'
 import BreachProtocol from './components/BreachProtocol'
 import Timer from './components/Timer'
 import CodeBank from './components/CodeBank'
+import NeuralPanel from './components/NeuralPanel'
 import { UiSoundProvider, useUiSoundApi } from './contexts/UiSoundContext'
 import './styles.css'
+
+const deepClone = (obj, visited = new WeakMap()) => {
+  if (obj === null || typeof obj !== 'object') return obj
+  
+  // Handle circular references
+  if (visited.has(obj)) return visited.get(obj)
+  
+  if (Array.isArray(obj)) {
+    const cloned = []
+    visited.set(obj, cloned)
+    for (let i = 0; i < obj.length; i++) {
+      cloned[i] = deepClone(obj[i], visited)
+    }
+    return cloned
+  }
+  
+  if (obj instanceof Date) return new Date(obj.getTime())
+  if (obj instanceof RegExp) return new RegExp(obj)
+  
+  const cloned = {}
+  visited.set(obj, cloned)
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = deepClone(obj[key], visited)
+    }
+  }
+  return cloned
+}
 
 const deepEqual = (a, b, visited = new WeakMap()) => {
   if (Object.is(a, b)) return true
@@ -151,6 +180,15 @@ function AppContent() {
   const [timerActive, setTimerActive] = useState(false)
   const [hasBreached, setHasBreached] = useState(false)
   const [showCodeBank, setShowCodeBank] = useState(false)
+  const [showNeuralPanel, setShowNeuralPanel] = useState(true)
+  const [problemStartTime, setProblemStartTime] = useState(null)
+  const [neuralStats, setNeuralStats] = useState({
+    sessions: 0,
+    totalConnections: 0,
+    challengeIndex: 1,
+    difficultyHistory: [],
+    lastSession: null
+  })
   const sounds = useUiSoundApi()
 
   // Load from localStorage on mount
@@ -240,7 +278,9 @@ function AppContent() {
       for (let i = 0; i < problem.tests.length; i++) {
         const test = problem.tests[i]
         try {
-          const result = userFunction(...test.input)
+          // Deep clone inputs to prevent mutation from affecting subsequent tests
+          const clonedInput = deepClone(test.input)
+          const result = userFunction(...clonedInput)
           const { passed, message: validatorMessage } = evaluateExpectation(result, test.expected)
 
           results.push({
@@ -281,6 +321,59 @@ function AppContent() {
         setTimerActive(false)
         // If all tests passed, show breach protocol animation and mark as completed
         setCompletedProblems(prev => new Set([...prev, currentProblem]))
+        const difficultyWeights = { easy: 0.9, medium: 1.2, hard: 1.6 }
+        const expectedSeconds = (problem.expectedMinutes || 5) * 60
+        const runtimeSeconds = problemStartTime
+          ? Math.max(20, (Date.now() - problemStartTime) / 1000)
+          : expectedSeconds
+        const diffWeight = difficultyWeights[problem.difficulty] || 1
+        const challengeRatio = Number((runtimeSeconds / expectedSeconds).toFixed(2))
+        const connectionsGained = Math.max(
+          6,
+          Math.round((diffWeight * 1200) / Math.max(challengeRatio, 0.55) / 10)
+        )
+        const focusScore = Math.max(
+          35,
+          Math.min(99, Math.round((diffWeight * 80) / (challengeRatio + 0.4)))
+        )
+        const plasticity = Math.min(
+          100,
+          Math.round(diffWeight * 40 + (1 / Math.max(challengeRatio, 0.3)) * 25)
+        )
+
+        setNeuralStats(prev => {
+          const sessions = prev.sessions + 1
+          const totalConnections = prev.totalConnections + connectionsGained
+          const history = [...prev.difficultyHistory, challengeRatio].slice(-6)
+          const challengeIndex = Number(
+            (
+              history.reduce((acc, val) => acc + val, 0) / (history.length || 1)
+            ).toFixed(2)
+          )
+
+          return {
+            sessions,
+            totalConnections,
+            difficultyHistory: history,
+            challengeIndex,
+            lastSession: {
+              durationSeconds: Math.round(runtimeSeconds),
+              expectedSeconds: Math.round(expectedSeconds),
+              difficulty: problem.difficulty,
+              connectionsGained,
+              focusScore,
+              challengeRatio,
+              plasticity,
+              adaptiveDifficulty:
+                challengeRatio < 0.75
+                  ? 'Increase complexity'
+                  : challengeRatio > 1.6
+                  ? 'Stabilize focus'
+                  : 'Optimal strain'
+            }
+          }
+        })
+        setProblemStartTime(null)
         // Save code to code bank
         const result = saveToCodeBank(problem.id, problem.title, userCode)
         if (result.warning) {
@@ -315,6 +408,7 @@ function AppContent() {
     setIsDangerMode(false)
     setTimerActive(false)
     setHasBreached(false)
+    setProblemStartTime(null)
   }
 
   const handleTimeUp = () => {
@@ -326,6 +420,7 @@ function AppContent() {
     sounds.playConfirm()
     setHasBreached(true)
     setTimerActive(true)
+    setProblemStartTime(Date.now())
   }
 
   const problem = problems[currentProblem]
@@ -340,7 +435,18 @@ function AppContent() {
         <div className="glitch" data-text="CYBERPUNK JS DOJO">CYBERPUNK JS DOJO</div>
         <div className="subtitle">// NEON CITY CODING CHALLENGES //</div>
         <div className="header-actions">
-          <div className="datamine-tracker">
+          <div className="header-controls">
+            <button 
+              className="codebank-header-btn run-btn" 
+              onClick={() => setShowCodeBank(true)}
+              style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem' }}
+            >
+              <span className="btn-text">CODE BANK</span>
+              <span className="btn-glow"></span>
+            </button>
+          </div>
+          
+          <div className="datamine-tracker center-stage">
             <span className="terminal-prompt">></span>
             <span className="terminal-text">DATAMINES ACQUIRED: {completedProblems.size}/{problems.length}</span>
             <div className="datamine-progress">
@@ -350,14 +456,17 @@ function AppContent() {
               ></div>
             </div>
           </div>
-          <button 
-            className="codebank-header-btn run-btn" 
-            onClick={() => setShowCodeBank(true)}
-            style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem', marginLeft: '1.5rem' }}
-          >
-            <span className="btn-text">CODE BANK</span>
-            <span className="btn-glow"></span>
-          </button>
+
+          <div className="header-controls">
+            <button 
+              className="neural-toggle-btn run-btn" 
+              onClick={() => setShowNeuralPanel(prev => !prev)}
+              style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem' }}
+            >
+              <span className="btn-text">{showNeuralPanel ? 'HIDE NEURAL HUD' : 'NEURAL HUD'}</span>
+              <span className="btn-glow"></span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -450,6 +559,11 @@ function AppContent() {
           }}
         />
       )}
+      <NeuralPanel 
+        isVisible={showNeuralPanel}
+        onClose={() => setShowNeuralPanel(false)}
+        stats={neuralStats}
+      />
       <CodeBank 
         isVisible={showCodeBank}
         onClose={() => setShowCodeBank(false)}
