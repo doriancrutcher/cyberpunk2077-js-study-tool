@@ -180,7 +180,7 @@ function AppContent() {
   const [timerActive, setTimerActive] = useState(false)
   const [hasBreached, setHasBreached] = useState(false)
   const [showCodeBank, setShowCodeBank] = useState(false)
-  const [showNeuralPanel, setShowNeuralPanel] = useState(true)
+  const [showNeuralPanel, setShowNeuralPanel] = useState(false)
   const [problemStartTime, setProblemStartTime] = useState(null)
   const [neuralStats, setNeuralStats] = useState({
     sessions: 0,

@@ -28,6 +28,7 @@ const particleSeeds = [
 function NeuralPanel({ isVisible, onClose, stats }) {
   const defaultPosition = { x: 0, y: 0 }
   const [dragPosition, setDragPosition] = useState(defaultPosition)
+  const [showProtocolModal, setShowProtocolModal] = useState(false)
   const panelRef = useRef(null)
 
   if (!isVisible) {
@@ -73,12 +74,17 @@ function NeuralPanel({ isVisible, onClose, stats }) {
     <aside className="neural-panel" ref={panelRef}>
       <div className="neural-panel__header">
         <div className="neural-panel__title">
-          <span className="terminal-prompt">></span>
+          <span className="terminal-prompt">{'>'}</span>
           <span className="terminal-text">NEURAL FORGE</span>
         </div>
-        <button className="neural-close-btn" onClick={onClose}>
-          HIDE
-        </button>
+        <div className="neural-panel__actions">
+          <button className="neural-btn neural-logs-btn" onClick={() => setShowProtocolModal(true)}>
+            LOGS
+          </button>
+          <button className="neural-btn neural-close-btn" onClick={onClose}>
+            HIDE
+          </button>
+        </div>
       </div>
 
       <div className="neural-brain-visual">
@@ -183,6 +189,85 @@ function NeuralPanel({ isVisible, onClose, stats }) {
           <div className="tip-status">{last.adaptiveDifficulty}</div>
         )}
       </div>
+
+      {showProtocolModal && (
+        <div className="protocol-modal-overlay" onClick={() => setShowProtocolModal(false)}>
+          <div className="protocol-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="protocol-modal-header">
+              <div className="protocol-header-content">
+                <span className="protocol-prompt">//:</span>
+                <span className="protocol-title">SYSTEM LOG: WETWARE OPTIMIZATION PROTOCOL</span>
+              </div>
+              <button 
+                className="protocol-modal-close" 
+                onClick={() => setShowProtocolModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="protocol-modal-content">
+              <div className="protocol-section">
+                <div className="protocol-section-header">ANALYSIS: FORCED EVOLUTION & SYNAPTIC HARDENING</div>
+                <div className="protocol-content">
+                  Your wetware—the organic processing unit of the cortex—is not static hardware. It is a living, neurochemical substrate designed for dynamic reconfiguration. To upgrade its computational capacity, you must induce controlled biological stress (challenge).
+                  <br /><br />
+                  Forcing the system to execute high-complexity subroutines (e.g., learning, problem-solving) triggers an adaptive response in the living tissue. This is not just a software update; it is a physical hardware fabrication. New dendritic connections are grown, and existing pathways are reinforced with myelin "shielding."
+                  <br /><br />
+                  Frequent diagnostic execution (self-testing) is the primary optimization protocol. This is an active bio-electric query, not passive data absorption. The act of "forcing" the retrieval triggers a neurochemical signal that a specific pathway is high-value. This targeted stress is the mechanism that strengthens and hardens the physical grid.
+                </div>
+              </div>
+
+              <div className="protocol-section">
+                <div className="protocol-section-header">THREAT: SYNAPTIC ATROPHY (FORGETTING) & COUNTER-PROTOCOLS</div>
+                <div className="protocol-content">
+                  Unused data pathways are marked for synaptic pruning—a biological resource-management protocol. The system will reclaim the energy from inefficient connections. Your defense is the Active Retrieval Protocol.
+                  <br /><br />
+                  <strong>Passive Data Ingestion (Passive Review):</strong>
+                  <br />
+                  Operation: A read-only data stream (re-reading, watching).
+                  <br />
+                  Vulnerability: This floods the sensory buffers, creating a temporary "ghost-echo" in the short-term memory. The data feels authenticated, but no long-term potentiation (the biological "write" command) has occurred. This is the "Illusion of Knowing"—a critical failure state.
+                  <br /><br />
+                  <strong>Active Retrieval Protocol (Active Recall):</strong>
+                  <br />
+                  Operation: A "fetch-execute" command without the source data. The neural processor must locate the engram (the physical memory trace) itself.
+                  <br />
+                  Result: The initial neuro-latency (the "struggle") is not a bug; it is the core feature. This act of forced retrieval pings the data packet for high-priority biological authentication. The system flags that pathway for survival, reinforcing it against the standard decay protocol.
+                </div>
+              </div>
+
+              <div className="protocol-section">
+                <div className="protocol-section-header">DIAGNOSTIC: SYSTEM-STATE SENSORS (WHAT YOU "FEEL")</div>
+                <div className="protocol-content">
+                  To confirm the optimization protocol is active, monitor your internal state for these sensory "haptics." The process is not meant to feel easy. Ease is a symptom of system stagnation.
+                  <br /><br />
+                  <strong>"Cognitive Burn" / Processor Strain:</strong>
+                  <br />
+                  You will experience a sensation of mental friction or fatigue. This is the "brain hurt" you feel. It is the literal metabolic cost of building new hardware. Your processor is running at 100% capacity, consuming glucose and generating bio-electrical "heat." This is a positive signal.
+                  <br /><br />
+                  <strong>Data-Latency (The "Struggle"):</strong>
+                  <br />
+                  When executing an Active Retrieval query, you will experience a delay. The data will not be instantaneous. This latency is the work. You are forcing the system to search, locate, and compile the data packet from deep storage. This is the "desirable difficulty." Do not abort the query.
+                  <br /><br />
+                  <strong>System "Fog" / Cache Overload:</strong>
+                  <br />
+                  As you push the limits of new data ingestion, your short-term buffers will feel "full" or "foggy." This is the sensation of cognitive overload. It is a sign you have reached the current boundary of your processing capacity. This is the boundary you must push.
+                  <br /><br />
+                  <div className="protocol-critical">
+                    <strong>//: CRITICAL_NOTE</strong> Do not confuse productive strain with system failure (anxiety).
+                    <br />
+                    Strain is the feeling of effort as you focus on the task.
+                    <br />
+                    Failure is the feeling of helplessness and the desire to disengage.
+                    <br />
+                    The first is the catalyst for growth. The second is the affective filter engaging, which halts all new data fabrication. Trust the protocol. The "burn" means it's working.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
     </Draggable>
   )
